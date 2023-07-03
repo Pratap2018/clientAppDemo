@@ -1,11 +1,24 @@
 let account;
 let chainId;
 let didDocument;
+let offlineSigner;
+let credentialDoc;
+const { DirectSecp256k1HdWallet } = require("@cosmjs/proto-signing");
+const { Slip10RawIndex } = require("@cosmjs/crypto");
+// let did = "did:hid:testnet:z2JFAEgfG5b7PhjHmCGuAeRPzqUaJ3Te9LUycbDMRzDwH";
+const nodeRpcEndpoint = "https://rpc.jagrat.hypersign.id";
+const nodeRestEndpoint = "https://api.jagrat.hypersign.id";
 const apiBaseUrl = "http://localhost:3001/api/v1/did";
 const accessToken =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBJZCI6IjA5OTAzZjk3MmMxZDg2ODIxNDY2MTZjNzAxYjVjZTYxOWY0NyIsInVzZXJJZCI6InZhcnNoYWt1bWFyaTM3MEBnbWFpbC5jb20iLCJncmFudFR5cGUiOiJjbGllbnRfY3JlZGVudGlhbHMiLCJpYXQiOjE2ODY4OTExNjUsImV4cCI6MTY4NjkwNTU2NX0.PBWSFRwQuvrXXqJh1MiTrXBcAlsn3qWEDK3uvcuSDek";
-const { HypersignDID } = require("hs-ssi-sdk");
+
 const Web3 = require("web3");
+const { HypersignDID, HypersignVerifiableCredential } = require("hs-ssi-sdk");
+// const {
+//   HypersignDID,
+//   HypersignVerifiableCredential,
+// } = require("../build/src/index");
+
 document.getElementById("generateToken").addEventListener("click", async () => {
   let resp = await fetch("https://api.entity.hypersign.id/api/v1/app/oauth", {
     method: "POST",
@@ -256,3 +269,81 @@ document.getElementById("removeVM").addEventListener("click", async () => {
   });
   console.log(resp, "resp rvm");
 });
+
+function makeCosmoshubPath(a) {
+  return [
+    Slip10RawIndex.hardened(44),
+    Slip10RawIndex.hardened(118),
+    Slip10RawIndex.hardened(0),
+    Slip10RawIndex.normal(0),
+    Slip10RawIndex.normal(a),
+  ];
+}
+const mnemonic =
+  "cart blind guard cactus unit desk effort there always basic cram hole coin hire century can strategy motor cheap exist field chapter dolphin boring";
+const createWallet = async (mnemonic) => {
+  let options;
+  if (!mnemonic) {
+    return await DirectSecp256k1HdWallet.generate(
+      24,
+      (options = {
+        prefix: "hid",
+        hdPaths: [makeCosmoshubPath(0)],
+      })
+    );
+  } else {
+    return await DirectSecp256k1HdWallet.fromMnemonic(
+      mnemonic,
+      (options = {
+        prefix: "hid",
+        hdPaths: [makeCosmoshubPath(0)],
+      })
+    );
+  }
+};
+
+document
+  .getElementById("generateCredentail")
+  .addEventListener("click", async () => {
+    offlineSigner = await createWallet(mnemonic);
+
+    console.log(offlineSigner);
+    const hypersignCredential = new HypersignVerifiableCredential({
+      offlineSigner,
+      nodeRpcEndpoint,
+      nodeRestEndpoint,
+      namespace: "testnet",
+    });
+    hypersignCredential.init();
+    console.log(hypersignCredential);
+    const did = "did:hid:testnet:zvS4W3FdcRiS2Zg4jHi1X8q1HMeYR5euBae2P2ay6whn";
+    credentialDoc = await hypersignCredential.generate({
+      schemaContext: ["https://schema.org"],
+      type: ["Person"],
+      subjectDid: did,
+      issuerDid: did,
+      fields: { name: "varsha" },
+      expirationDate: "2027-12-10T18:30:00.000Z",
+    });
+    console.log(credentialDoc, "credentialDoc");
+  });
+
+document
+  .getElementById("issueCredential")
+  .addEventListener("click", async () => {
+    const credDdid =
+      "did:hid:testnet:zvS4W3FdcRiS2Zg4jHi1X8q1HMeYR5euBae2P2ay6whn";
+    const hypersignCred = new HypersignVerifiableCredential();
+    const web3Obj = new Web3(window.web3.currentProvider);
+    console.log(web3Obj);
+    window.web3 = web3Obj;
+    console.log(web3Obj, "wenb33obj");
+    const issueCredential = await hypersignCred.issueByClientSpec({
+      credential: credentialDoc,
+      issuerDid: credDdid,
+      verificationMethodId: `${credDdid}#key-1`,
+      web3Obj: web3Obj,
+      registerCredential: false,
+    });
+    console.log(issueCredential);
+  });
