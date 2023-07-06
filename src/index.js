@@ -3,17 +3,24 @@ let chainId;
 let didDocument;
 let offlineSigner;
 let credentialDoc;
+let did = "did:hid:testnet:0x6773Cddcc40737e972b307A9B397e87f3780bf78";
+let issueCredential;
+let presentation;
+let signedPresentation;
 const { DirectSecp256k1HdWallet } = require("@cosmjs/proto-signing");
 const { Slip10RawIndex } = require("@cosmjs/crypto");
 // let did = "did:hid:testnet:z2JFAEgfG5b7PhjHmCGuAeRPzqUaJ3Te9LUycbDMRzDwH";
 const nodeRpcEndpoint = "https://rpc.jagrat.hypersign.id";
 const nodeRestEndpoint = "https://api.jagrat.hypersign.id";
-const apiBaseUrl = "http://localhost:3001/api/v1/did";
+const apiBaseUrl = "https://api.entity.hypersign.id/api/v1/did";
 const accessToken =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBJZCI6IjA5OTAzZjk3MmMxZDg2ODIxNDY2MTZjNzAxYjVjZTYxOWY0NyIsInVzZXJJZCI6InZhcnNoYWt1bWFyaTM3MEBnbWFpbC5jb20iLCJncmFudFR5cGUiOiJjbGllbnRfY3JlZGVudGlhbHMiLCJpYXQiOjE2ODY4OTExNjUsImV4cCI6MTY4NjkwNTU2NX0.PBWSFRwQuvrXXqJh1MiTrXBcAlsn3qWEDK3uvcuSDek";
-
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBJZCI6ImQ2N2NkNjEyNTE2NzY0MmEyMjhjNzRjNTcwZGU5YjZjYzQ0OCIsInVzZXJJZCI6InZhcnNoYWt1bWFyaTM3MEBnbWFpbC5jb20iLCJncmFudFR5cGUiOiJjbGllbnRfY3JlZGVudGlhbHMiLCJpYXQiOjE2ODg0NzgxMzYsImV4cCI6MTY4ODQ5MjUzNn0.OL6wKPG6sDpCx0Qv3guzkaBX9Mx1YsLhEV304HScA6c";
 const Web3 = require("web3");
-const { HypersignDID, HypersignVerifiableCredential } = require("hs-ssi-sdk");
+const {
+  HypersignDID,
+  HypersignVerifiableCredential,
+  HypersignVerifiablePresentation,
+} = require("hs-ssi-sdk");
 // const {
 //   HypersignDID,
 //   HypersignVerifiableCredential,
@@ -71,7 +78,8 @@ document.getElementById("createDID").addEventListener("click", async () => {
     null,
     2
   );
-  console.log(didDocument);
+  did = didDoc.metaData.didDocument.id;
+  console.log(did);
 });
 
 document.getElementById("registerDID").addEventListener("click", async () => {
@@ -85,7 +93,6 @@ document.getElementById("registerDID").addEventListener("click", async () => {
     address: account,
     web3: web3Obj,
   });
-
   console.log(signAndDoc);
 
   const didDoc = signAndDoc.didDocument;
@@ -316,7 +323,7 @@ document
     });
     hypersignCredential.init();
     console.log(hypersignCredential);
-    const did = "did:hid:testnet:zvS4W3FdcRiS2Zg4jHi1X8q1HMeYR5euBae2P2ay6whn";
+    // const did = "did:hid:testnet:zvS4W3FdcRiS2Zg4jHi1X8q1HMeYR5euBae2P2ay6whn";
     credentialDoc = await hypersignCredential.generate({
       schemaContext: ["https://schema.org"],
       type: ["Person"],
@@ -331,19 +338,76 @@ document
 document
   .getElementById("issueCredential")
   .addEventListener("click", async () => {
-    const credDdid =
-      "did:hid:testnet:zvS4W3FdcRiS2Zg4jHi1X8q1HMeYR5euBae2P2ay6whn";
-    const hypersignCred = new HypersignVerifiableCredential();
+    const hypersignCred = new HypersignVerifiableCredential({
+      offlineSigner,
+      nodeRpcEndpoint,
+      nodeRestEndpoint,
+      namespace: "testnet",
+    });
     const web3Obj = new Web3(window.web3.currentProvider);
-    console.log(web3Obj);
     window.web3 = web3Obj;
-    console.log(web3Obj, "wenb33obj");
-    const issueCredential = await hypersignCred.issueByClientSpec({
+    issueCredential = await hypersignCred.issueByClientSpec({
       credential: credentialDoc,
-      issuerDid: credDdid,
-      verificationMethodId: `${credDdid}#key-1`,
+      issuerDid: did,
+      verificationMethodId: `${did}#key-1`,
       web3Obj: web3Obj,
       registerCredential: false,
     });
     console.log(issueCredential);
+  });
+
+document
+  .getElementById("verifyCredential")
+  .addEventListener("click", async () => {
+    const hypersignCred = new HypersignVerifiableCredential();
+    const web3Obj = new Web3(window.web3.currentProvider);
+    window.web3 = web3Obj;
+    console.log(issueCredential.signedCredential, "-------------");
+    const verifyCredential = await hypersignCred.verifyByClientSpec({
+      credential: issueCredential.signedCredential,
+      issuerDid: did,
+      verificationMethodId: `${did}#key-1`,
+      web3Obj: web3Obj,
+    });
+    console.log(verifyCredential);
+  });
+
+document
+  .getElementById("generatePresentation")
+  .addEventListener("click", async () => {
+    const hypersignPresentation = new HypersignVerifiablePresentation({
+      offlineSigner,
+      nodeRestEndpoint,
+      nodeRpcEndpoint,
+      namespace: "testnet",
+    });
+    const cred = issueCredential.signedCredential;
+    const credArra = [];
+    credArra.push(cred);
+    presentation = await hypersignPresentation.generate({
+      verifiableCredentials: credArra,
+      holderDid: did,
+    });
+    console.log(presentation);
+  });
+
+document
+  .getElementById("signPresentation")
+  .addEventListener("click", async () => {
+    const hypersignPresentation = new HypersignVerifiablePresentation({
+      offlineSigner,
+      nodeRestEndpoint,
+      nodeRpcEndpoint,
+      namespace: "testnet",
+    });
+    const web3Obj = new Web3(window.web3.currentProvider);
+    window.web3 = web3Obj;
+    signedPresentation = await hypersignPresentation.signByClientSpec({
+      presentation,
+      holderDid: did,
+      verificationMethodId: `${did}#key-1`,
+      web3Obj,
+      challenge: "dhejglgk",
+    });
+    console.log(signedPresentation);
   });
