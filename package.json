@@ -12,7 +12,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "hs-ssi-sdk": "file:../Documents/hid-ssi-js-sdk",
+    "bip39": "^3.1.0",
+    "hs-ssi-sdk": "file:../hid-ssi-js-sdk",
     "node-polyfill-webpack-plugin": "^2.0.1",
     "web3": "^1.8.2"
   },

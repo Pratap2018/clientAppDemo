@@ -3,18 +3,26 @@ let chainId;
 let didDocument;
 let offlineSigner;
 let credentialDoc;
-let did = "did:hid:testnet:0x6773Cddcc40737e972b307A9B397e87f3780bf78";
+let did;
 let issueCredential;
 let presentation;
 let signedPresentation;
+let didDoc;
+let signedDidDoc;
+let resolvedDidDoc;
+let privateKey;
+const issuerDid =
+  "did:hid:testnet:zCoEsFtqdkgYetBH6EnX4T9nFsLuNKSEpdkV4e4mFAGxT";
+import { Bip39 } from "@cosmjs/crypto";
 const { DirectSecp256k1HdWallet } = require("@cosmjs/proto-signing");
 const { Slip10RawIndex } = require("@cosmjs/crypto");
 // let did = "did:hid:testnet:z2JFAEgfG5b7PhjHmCGuAeRPzqUaJ3Te9LUycbDMRzDwH";
+
 const nodeRpcEndpoint = "https://rpc.jagrat.hypersign.id";
 const nodeRestEndpoint = "https://api.jagrat.hypersign.id";
 const apiBaseUrl = "https://api.entity.hypersign.id/api/v1/did";
 const accessToken =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBJZCI6ImQ2N2NkNjEyNTE2NzY0MmEyMjhjNzRjNTcwZGU5YjZjYzQ0OCIsInVzZXJJZCI6InZhcnNoYWt1bWFyaTM3MEBnbWFpbC5jb20iLCJncmFudFR5cGUiOiJjbGllbnRfY3JlZGVudGlhbHMiLCJpYXQiOjE2ODg0NzgxMzYsImV4cCI6MTY4ODQ5MjUzNn0.OL6wKPG6sDpCx0Qv3guzkaBX9Mx1YsLhEV304HScA6c";
+  "yJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBJZCI6ImQ2N2NkNjEyNTE2NzY0MmEyMjhjNzRjNTcwZGU5YjZjYzQ0OCIsInVzZXJJZCI6InZhcnNoYWt1bWFyaTM3MEBnbWFpbC5jb20iLCJncmFudFR5cGUiOiJjbGllbnRfY3JlZGVudGlhbHMiLCJpYXQiOjE2ODkzMzE3MjMsImV4cCI6MTY4OTM0NjEyM30.51T35D6vjQ1HtH5cHiZQ4iQH4_hUXHTymDMiK51sdqA";
 const Web3 = require("web3");
 const {
   HypersignDID,
@@ -52,231 +60,6 @@ document
     document.getElementById("chainId").innerHTML = chainId;
   });
 
-document.getElementById("createDID").addEventListener("click", async () => {
-  let resp = await fetch(`${apiBaseUrl}/create`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + accessToken,
-    },
-    body: JSON.stringify({
-      namespace: "testnet",
-      options: {
-        keyType: "EcdsaSecp256k1RecoveryMethod2020",
-        chainId,
-        walletAddress: account,
-      },
-    }),
-  });
-
-  const didDoc = await resp.json();
-  console.log(didDoc);
-  didDocument = didDoc.metaData;
-  document.getElementById("didId").innerHTML = didDoc.did;
-  document.getElementById("didDoc").innerHTML = JSON.stringify(
-    didDoc.metaData,
-    null,
-    2
-  );
-  did = didDoc.metaData.didDocument.id;
-  console.log(did);
-});
-
-document.getElementById("registerDID").addEventListener("click", async () => {
-  const hypersignDID = new HypersignDID();
-  const web3Obj = new Web3(window.web3.currentProvider);
-  window.web3 = web3Obj;
-  console.log(account, web3Obj);
-  const signAndDoc = await hypersignDID.signByClientSpec({
-    didDocument: didDocument.didDocument,
-    clientSpec: "eth-personalSign",
-    address: account,
-    web3: web3Obj,
-  });
-  console.log(signAndDoc);
-
-  const didDoc = signAndDoc.didDocument;
-  console.log({ didDoc, signAndDoc });
-
-  const sigInfos = [
-    {
-      verification_method_id: didDoc.verificationMethod[0].id,
-      signature: signAndDoc.signature,
-      clientSpec: { type: "eth-personalSign" },
-    },
-  ];
-  let resp = await fetch(`${apiBaseUrl}/register`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + accessToken,
-    },
-    body: JSON.stringify({
-      didDocument: didDoc,
-      signInfos: sigInfos,
-    }),
-  });
-
-  console.log(await resp.json());
-});
-
-document.getElementById("updateDID").addEventListener("click", async () => {
-  console.log("updateDid");
-  const hypersignDID = new HypersignDID();
-  const web3Obj = new Web3(window.web3.currentProvider);
-  window.web3 = web3Obj;
-  const did = didDocument.didDocument.id;
-  delete didDocument.service;
-  let verificationMethod2 = didDocument.didDocument.verificationMethod[0].id;
-  verificationMethod2 = verificationMethod2.replace("key-1", "key-2");
-  const verificationMetod3 = verificationMethod2.replace("key-2", "key-3");
-  console.log(verificationMethod2, "verificationMethod2");
-  console.log(didDocument.didDocument.verificationMethod);
-  didDocument.didDocument.assertionMethod.push(verificationMethod2);
-  didDocument.didDocument.authentication.push(verificationMethod2);
-  didDocument.didDocument.capabilityInvocation.push(verificationMethod2);
-
-  didDocument.didDocument.capabilityDelegation.push(verificationMethod2);
-
-  didDocument.didDocument.verificationMethod.push({
-    id: verificationMethod2,
-    type: "EcdsaSecp256k1RecoveryMethod2020",
-    controller: did,
-    blockchainAccountId: `eip155:137:${account}`,
-  });
-  // if wants to add three wallet
-
-  // didDocument.didDocument.assertionMethod.push(verificationMetod3);
-  // didDocument.didDocument.authentication.push(verificationMetod3);
-  // didDocument.didDocument.capabilityInvocation.push(verificationMetod3);
-
-  // didDocument.didDocument.capabilityDelegation.push(verificationMetod3);
-
-  // didDocument.didDocument.verificationMethod.push({
-  //   id: verificationMetod3,
-  //   type: "EcdsaSecp256k1RecoveryMethod2020",
-  //   controller: did,
-  //   blockchainAccountId: `eip155:56:${account}`,
-  // });
-  console.log(didDocument.didDocument);
-  const signAndDoc = await hypersignDID.signByClientSpec({
-    didDocument: didDocument.didDocument,
-    clientSpec: "eth-personalSign",
-    address: account,
-    web3: web3Obj,
-  });
-  console.log(signAndDoc, "signAndDoc");
-  const didDoc = signAndDoc.didDocument;
-  const signInfos = [
-    {
-      verification_method_id: didDoc.verificationMethod[0].id,
-      signature: signAndDoc.signature,
-      clientSpec: { type: "eth-personalSign", adr036SignerAddress: "" },
-    },
-    {
-      verification_method_id: verificationMethod2,
-      signature: signAndDoc.signature,
-      clientSpec: { type: "eth-personalSign", adr036SignerAddress: "" },
-    },
-    // {
-    //   verification_method_id: verificationMetod3,
-    //   signature: signAndDoc.signature,
-    //   clientSpec: { type: "eth-personalSign", adr036SignerAddress: "" },
-    // },
-  ];
-  console.log(signInfos);
-  console.log({
-    didDocument: didDoc,
-    signInfos: signInfos,
-  });
-  let resp = await fetch(`${apiBaseUrl}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + accessToken,
-    },
-    body: JSON.stringify({
-      didDocument: didDoc,
-      signInfos: signInfos,
-      deactivate: false,
-    }),
-  });
-
-  console.log(await resp.json());
-});
-document.getElementById("fetchDid").addEventListener("click", async () => {
-  console.log("fetchDid");
-
-  const hypersignDID = new HypersignDID();
-  const web3Obj = new Web3(window.web3.currentProvider);
-
-  window.web3 = web3Obj;
-  didDocument.didDocument.verificationMethod.push({
-    id: "did:hid:testnet:0x2325a41Ef8b8f99CF00FAB50e05a6Ef438D21349#key-1",
-    type: "EcdsaSecp256k1RecoveryMethod2020",
-    controller: "did:hid:testnet:0x2325a41Ef8b8f99CF00FAB50e05a6Ef438D21349",
-    blockchainAccountId: "eip155:1:0x2325a41Ef8b8f99CF00FAB50e05a6Ef438D21349",
-  });
-  const signAndDoc = await hypersignDID.signByClientSpec({
-    didDocument: didDocument.didDocument,
-    clientSpec: "eth-personalSign",
-    address: account,
-    web3: web3Obj,
-  });
-  console.log(signAndDoc);
-  const didDoc = signAndDoc.didDocument;
-  let resp = await fetch(`${apiBaseUrl}`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + accessToken,
-    },
-  });
-
-  console.log(await resp.json());
-});
-
-document.getElementById("removeVM").addEventListener("click", async () => {
-  console.log("rMV");
-  const hypersignDID = new HypersignDID();
-  const web3Obj = new Web3(window.web3.currentProvider);
-  window.web3 = web3Obj;
-  const did = didDocument.didDocument.id;
-  didDocument.didDocument.verificationMethod.pop();
-  didDocument.didDocument.assertionMethod.pop();
-  didDocument.didDocument.authentication.pop();
-  didDocument.didDocument.capabilityInvocation.pop();
-  didDocument.didDocument.capabilityDelegation.pop();
-  const signAndDoc = await hypersignDID.signByClientSpec({
-    didDocument: didDocument.didDocument,
-    clientSpec: "eth-personalSign",
-    address: account,
-    web3: web3Obj,
-  });
-  console.log(signAndDoc);
-  const didDoc = signAndDoc.didDocument;
-  const signInfos = [
-    {
-      verification_method_id: didDoc.verificationMethod[0].id,
-      signature: signAndDoc.signature,
-      clientSpec: { type: "eth-personalSign", adr036SignerAddress: "" },
-    },
-  ];
-  let resp = await fetch(`${apiBaseUrl}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + accessToken,
-    },
-    body: JSON.stringify({
-      didDocument: didDoc,
-      signInfos: signInfos,
-      deactivate: false,
-    }),
-  });
-  console.log(resp, "resp rvm");
-});
-
 function makeCosmoshubPath(a) {
   return [
     Slip10RawIndex.hardened(44),
@@ -309,69 +92,273 @@ const createWallet = async (mnemonic) => {
   }
 };
 
-document
-  .getElementById("generateCredentail")
-  .addEventListener("click", async () => {
-    offlineSigner = await createWallet(mnemonic);
+document.getElementById("createDID").addEventListener("click", async () => {
+  offlineSigner = await createWallet(mnemonic);
+  const hypersignDid = new HypersignDID({ namespace: "testnet" });
+  didDoc = await hypersignDid.createByClientSpec({
+    methodSpecificId: account,
+    address: account,
+    clientSpec: "eth-personalSign",
+    chainId: "0x1",
+    // verificationRelationships: [
+    //   "authentication",
+    //   "assertionMethod",
+    //   "capabilityDelegation",
+    // ],
+  });
+  console.log(didDoc);
+  did = didDoc.id;
+});
 
-    console.log(offlineSigner);
-    const hypersignCredential = new HypersignVerifiableCredential({
+document
+  .getElementById("signByClientSpec")
+  .addEventListener("click", async () => {
+    const hypersignDid = new HypersignDID({
+      namespace: "testnet",
+    });
+    const web3Obj = new Web3(window.web3.currentProvider);
+    window.web3 = web3Obj;
+    signedDidDoc = await hypersignDid.signByClientSpec({
+      didDocument: didDoc,
+      clientSpec: "eth-personalSign",
+      address: account,
+      web3: web3Obj,
+    });
+    console.log(signedDidDoc);
+  });
+document
+  .getElementById("registerByClientSpec")
+  .addEventListener("click", async () => {
+    const web3Obj = new Web3(window.web3.currentProvider);
+    window.web3 = web3Obj;
+    const hypersignDID2 = new HypersignDID({
       offlineSigner,
       nodeRpcEndpoint,
       nodeRestEndpoint,
       namespace: "testnet",
     });
-    hypersignCredential.init();
-    console.log(hypersignCredential);
-    // const did = "did:hid:testnet:zvS4W3FdcRiS2Zg4jHi1X8q1HMeYR5euBae2P2ay6whn";
-    credentialDoc = await hypersignCredential.generate({
+    await hypersignDID2.init();
+
+    const sigInfo = [
+      {
+        verification_method_id: didDoc.verificationMethod[0].id,
+        signature: signedDidDoc.signature,
+        clientSpec: { type: "eth-personalSign" },
+      },
+    ];
+    const registeredDid = await hypersignDID2.registerByClientSpec({
+      didDocument: signedDidDoc.didDocument,
+      signInfos: sigInfo,
+    });
+    console.log(registeredDid, "registeredDid");
+  });
+
+document.getElementById("signAndReg").addEventListener("click", async () => {
+  const hypersignDiD = new HypersignDID({
+    offlineSigner,
+    nodeRpcEndpoint,
+    nodeRestEndpoint,
+    namespace: "testnet",
+  });
+  await hypersignDiD.init();
+  const web3Obj = new Web3(window.web3.currentProvider);
+  window.web3 = web3Obj;
+  const regDidDoc = await hypersignDiD.signAndRegisterByClientSpec({
+    didDocument: didDoc,
+    address: account,
+    verificationMethodId: didDoc.verificationMethod[0].id,
+    web3: web3Obj,
+    clientSpec: "eth-personalSign",
+  });
+  console.log(regDidDoc, "regDidDoc");
+});
+
+document.getElementById("resolveDid").addEventListener("click", async () => {
+  const hypersignDiD = new HypersignDID({
+    offlineSigner,
+    nodeRpcEndpoint,
+    nodeRestEndpoint,
+    namespace: "testnet",
+  });
+  await hypersignDiD.init();
+  resolvedDidDoc = await hypersignDiD.resolve({
+    did: didDoc.id,
+    //ed25519verificationkey2020: false,
+  });
+  console.log(resolvedDidDoc);
+});
+document.getElementById("updateDid").addEventListener("click", async () => {
+  console.log("update===================");
+  const web3Obj = new Web3(window.web3.currentProvider);
+  window.web3 = web3Obj;
+  const did = didDoc.id;
+  let verificationMethod2 = didDoc.verificationMethod[0].id;
+  verificationMethod2 = verificationMethod2.replace("key-1", "key-2");
+  didDoc.verificationMethod.push({
+    id: verificationMethod2,
+    type: "EcdsaSecp256k1RecoveryMethod2020",
+    controller: did,
+    blockchainAccountId: `eip155:56:${account}`,
+  });
+  didDoc.authentication.push(verificationMethod2);
+  const hypersignDiD = new HypersignDID({
+    offlineSigner,
+    nodeRpcEndpoint,
+    nodeRestEndpoint,
+    namespace: "testnet",
+  });
+  await hypersignDiD.init();
+  const signAndDoc = await hypersignDiD.signByClientSpec({
+    didDocument: didDoc,
+    clientSpec: "eth-personalSign",
+    address: account,
+    web3: web3Obj,
+  });
+  console.log(signAndDoc, "signAndDoc");
+  const sigInfo = [
+    {
+      verification_method_id: didDoc.verificationMethod[0].id,
+      signature: signAndDoc.signature,
+      clientSpec: { type: "eth-personalSign" },
+    },
+    {
+      verification_method_id: verificationMethod2,
+      signature: signAndDoc.signature,
+      clientSpec: { type: "eth-personalSign" },
+    },
+  ];
+  const updateDID = await hypersignDiD.updateByClientSpec({
+    didDocument: signAndDoc.didDocument,
+    versionId: resolvedDidDoc.didDocumentMetadata.versionId,
+    signInfos: sigInfo,
+  });
+  console.log(updateDID);
+});
+
+document.getElementById("deactivate").addEventListener("click", async () => {
+  console.log("update===================");
+  const web3Obj = new Web3(window.web3.currentProvider);
+  window.web3 = web3Obj;
+  const did = didDoc.id;
+  let verificationMethod2 = didDoc.verificationMethod[0].id;
+  verificationMethod2 = verificationMethod2.replace("key-1", "key-2");
+  didDoc.verificationMethod.push({
+    id: verificationMethod2,
+    type: "EcdsaSecp256k1RecoveryMethod2020",
+    controller: did,
+    blockchainAccountId: `eip155:56:${account}`,
+  });
+  didDoc.authentication.push(verificationMethod2);
+  const hypersignDiD = new HypersignDID({
+    offlineSigner,
+    nodeRpcEndpoint,
+    nodeRestEndpoint,
+    namespace: "testnet",
+  });
+  await hypersignDiD.init();
+  const signAndDoc = await hypersignDiD.signByClientSpec({
+    didDocument: didDoc,
+    clientSpec: "eth-personalSign",
+    address: account,
+    web3: web3Obj,
+  });
+  console.log(signAndDoc, "signAndDoc");
+  const sigInfo = [
+    {
+      verification_method_id: didDoc.verificationMethod[0].id,
+      signature: signAndDoc.signature,
+      clientSpec: { type: "eth-personalSign" },
+    },
+    {
+      verification_method_id: verificationMethod2,
+      signature: signAndDoc.signature,
+      clientSpec: { type: "eth-personalSign" },
+    },
+  ];
+  const updateDID = await hypersignDiD.deactivateByClientSpec({
+    didDocument: signAndDoc.didDocument,
+    versionId: resolvedDidDoc.didDocumentMetadata.versionId,
+    signInfos: sigInfo,
+  });
+  console.log(updateDID);
+});
+
+// document.getElementById("createDID2").addEventListener("click", async () => {
+//   offlineSigner = await createWallet(mnemonic);
+// const hypersignDid = new HypersignDID({ namespace: "testnet" });
+// const seed = Bip39.decode(mnemonic);
+// const kp = await hypersignDid.generateKeys({ seed });
+// privateKey = kp.privateKeyMultibase;
+// const publicKey = kp.publicKeyMultibase;
+//   console.log(privateKey, publicKey);
+//   didDocument = await hypersignDid.generate({
+//     publicKeyMultibase: privateKey,
+//   });
+//   console.log(didDocument);
+//   // did = didDoc.id;
+// });
+
+// document.getElementById("regiDid2").addEventListener("click", async () => {
+//   const hypersignDid = new HypersignDID({
+//     offlineSigner,
+//     nodeRestEndpoint,
+//     nodeRpcEndpoint,
+//     namespace: "testnet",
+//   });
+//   await hypersignDid.init();
+//   console.log(privateKey);
+//   const registerDid = await hypersignDid.register({
+//     didDocument: didDocument,
+//     privateKeyMultibase: privateKey,
+//     verificationMethodId: didDocument.verificationMethod[0].id,
+//   });
+//   console.log(registerDid);
+// });
+document
+  .getElementById("generateCredentail")
+  .addEventListener("click", async () => {
+    offlineSigner = await createWallet(mnemonic);
+    const vc = new HypersignVerifiableCredential({
+      offlineSigner,
+      nodeRestEndpoint,
+      nodeRpcEndpoint,
+      namespace: "testnet",
+    });
+    await vc.init();
+    credentialDoc = await vc.generate({
       schemaContext: ["https://schema.org"],
       type: ["Person"],
       subjectDid: did,
-      issuerDid: did,
+      issuerDid: issuerDid,
       fields: { name: "varsha" },
       expirationDate: "2027-12-10T18:30:00.000Z",
     });
-    console.log(credentialDoc, "credentialDoc");
+    console.log(credentialDoc);
   });
-
 document
   .getElementById("issueCredential")
   .addEventListener("click", async () => {
+    const hypersignDid = new HypersignDID({ namespace: "testnet" });
+    const seed = Bip39.decode(mnemonic);
+    const kp = await hypersignDid.generateKeys({ seed });
+    privateKey = kp.privateKeyMultibase;
+    console.log(privateKey);
+    const publicKey = kp.publicKeyMultibase;
     const hypersignCred = new HypersignVerifiableCredential({
       offlineSigner,
       nodeRpcEndpoint,
       nodeRestEndpoint,
       namespace: "testnet",
     });
-    const web3Obj = new Web3(window.web3.currentProvider);
-    window.web3 = web3Obj;
-    issueCredential = await hypersignCred.issueByClientSpec({
+
+    issueCredential = await hypersignCred.issue({
       credential: credentialDoc,
-      issuerDid: did,
-      verificationMethodId: `${did}#key-1`,
-      web3Obj: web3Obj,
-      registerCredential: false,
+      issuerDid: issuerDid,
+      verificationMethodId: `${issuerDid}#key-1`,
+      privateKeyMultibase: privateKey,
     });
     console.log(issueCredential);
   });
-
-document
-  .getElementById("verifyCredential")
-  .addEventListener("click", async () => {
-    const hypersignCred = new HypersignVerifiableCredential();
-    const web3Obj = new Web3(window.web3.currentProvider);
-    window.web3 = web3Obj;
-    console.log(issueCredential.signedCredential, "-------------");
-    const verifyCredential = await hypersignCred.verifyByClientSpec({
-      credential: issueCredential.signedCredential,
-      issuerDid: did,
-      verificationMethodId: `${did}#key-1`,
-      web3Obj: web3Obj,
-    });
-    console.log(verifyCredential);
-  });
-
 document
   .getElementById("generatePresentation")
   .addEventListener("click", async () => {
@@ -409,5 +396,154 @@ document
       web3Obj,
       challenge: "dhejglgk",
     });
-    console.log(signedPresentation);
+    console.log(signedPresentation, "signedPresentation");
   });
+
+document
+  .getElementById("verifyPresentation")
+  .addEventListener("click", async () => {
+    const hypersignPresentation = new HypersignVerifiablePresentation({
+      nodeRestEndpoint,
+      nodeRpcEndpoint,
+      namespace: "testnet",
+    });
+    const web3Obj = new Web3(window.web3.currentProvider);
+    window.web3 = web3Obj;
+    const verifiedPresentation = await hypersignPresentation.verifyByClientSpec(
+      {
+        signedPresentation,
+        challenge: "dhejglgk",
+        issuerDid: issuerDid,
+        holderDid: did,
+        holderVerificationMethodId: didDoc.verificationMethod[0].id,
+        issuerVerificationMethodId: didDoc.verificationMethod[0].id,
+        web3Obj,
+      }
+    );
+
+    console.log(verifiedPresentation);
+  });
+
+// document.getElementById("registerDID").addEventListener("click", async () => {
+//   const hypersignDID = new HypersignDID();
+//   const web3Obj = new Web3(window.web3.currentProvider);
+//   window.web3 = web3Obj;
+//   console.log(account, web3Obj);
+
+//   const signAndDoc = await hypersignDID.signByClientSpec({
+//     didDocument: didDocument.didDocument,
+//     clientSpec: "eth-personalSign",
+//     address: account,
+//     web3: web3Obj,
+//   });
+//   console.log(signAndDoc);
+
+//   const didDoc = signAndDoc.didDocument;
+//   console.log({ didDoc, signAndDoc });
+
+//   const sigInfos = [
+//     {
+//       verification_method_id: didDoc.verificationMethod[0].id,
+//       signature: signAndDoc.signature,
+//       clientSpec: { type: "eth-personalSign" },
+//     },
+//   ];
+//   let resp = await fetch(`${apiBaseUrl}/register`, {
+//     method: "POST",
+//     headers: {
+//       "Content-Type": "application/json",
+//       Authorization: "Bearer " + accessToken,
+//     },
+//     body: JSON.stringify({
+//       didDocument: didDoc,
+//       signInfos: sigInfos,
+//     }),
+//   });
+
+//   console.log(await resp.json());
+// });
+
+// document.getElementById("updateDID").addEventListener("click", async () => {
+//   console.log("updateDid");
+//   const hypersignDID = new HypersignDID();
+// const web3Obj = new Web3(window.web3.currentProvider);
+// window.web3 = web3Obj;
+//   const did = didDocument.didDocument.id;
+//   delete didDocument.service;
+//   let verificationMethod2 = didDocument.didDocument.verificationMethod[0].id;
+//   verificationMethod2 = verificationMethod2.replace("key-1", "key-2");
+//   const verificationMetod3 = verificationMethod2.replace("key-2", "key-3");
+//   console.log(verificationMethod2, "verificationMethod2");
+//   console.log(didDocument.didDocument.verificationMethod);
+//   didDocument.didDocument.assertionMethod.push(verificationMethod2);
+//   didDocument.didDocument.authentication.push(verificationMethod2);
+//   didDocument.didDocument.capabilityInvocation.push(verificationMethod2);
+
+//   didDocument.didDocument.capabilityDelegation.push(verificationMethod2);
+
+//   didDocument.didDocument.verificationMethod.push({
+//     id: verificationMethod2,
+//     type: "EcdsaSecp256k1RecoveryMethod2020",
+//     controller: did,
+//     blockchainAccountId: `eip155:137:${account}`,
+//   });
+//   // if wants to add three wallet
+
+//   // didDocument.didDocument.assertionMethod.push(verificationMetod3);
+//   // didDocument.didDocument.authentication.push(verificationMetod3);
+//   // didDocument.didDocument.capabilityInvocation.push(verificationMetod3);
+
+//   // didDocument.didDocument.capabilityDelegation.push(verificationMetod3);
+
+// didDocument.didDocument.verificationMethod.push({
+//   id: verificationMetod3,
+//   type: "EcdsaSecp256k1RecoveryMethod2020",
+//   controller: did,
+//   blockchainAccountId: `eip155:56:${account}`,
+// });
+//   console.log(didDocument.didDocument);
+// const signAndDoc = await hypersignDID.signByClientSpec({
+//   didDocument: didDocument.didDocument,
+//   clientSpec: "eth-personalSign",
+//   address: account,
+//   web3: web3Obj,
+// });
+//   console.log(signAndDoc, "signAndDoc");
+//   const didDoc = signAndDoc.didDocument;
+//   const signInfos = [
+//     {
+//       verification_method_id: didDoc.verificationMethod[0].id,
+//       signature: signAndDoc.signature,
+//       clientSpec: { type: "eth-personalSign", adr036SignerAddress: "" },
+//     },
+//     {
+//       verification_method_id: verificationMethod2,
+//       signature: signAndDoc.signature,
+//       clientSpec: { type: "eth-personalSign", adr036SignerAddress: "" },
+//     },
+//     // {
+//     //   verification_method_id: verificationMetod3,
+//     //   signature: signAndDoc.signature,
+//     //   clientSpec: { type: "eth-personalSign", adr036SignerAddress: "" },
+//     // },
+//   ];
+//   console.log(signInfos);
+//   console.log({
+//     didDocument: didDoc,
+//     signInfos: signInfos,
+//   });
+//   let resp = await fetch(`${apiBaseUrl}`, {
+//     method: "PATCH",
+//     headers: {
+//       "Content-Type": "application/json",
+//       Authorization: "Bearer " + accessToken,
+//     },
+//     body: JSON.stringify({
+//       didDocument: didDoc,
+//       signInfos: signInfos,
+//       deactivate: false,
+//     }),
+//   });
+
+//   console.log(await resp.json());
+// });
